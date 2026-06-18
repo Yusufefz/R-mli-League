@@ -1,0 +1,942 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Air Hockey Handy Safe</title>
+<style>
+body{margin:0;background:#081225;color:#fff;font-family:Arial,sans-serif;font-size:16px}
+header{background:#020617;padding:14px;border-bottom:1px solid #2b4264;position:sticky;top:0;z-index:5}
+h1{font-size:20px;margin:0}main{padding:10px 10px 80px;max-width:720px;margin:auto}
+.card{background:#101c30;border:1px solid #2b4264;border-radius:16px;padding:12px;margin-bottom:12px}
+label{display:block;color:#b6c3d8;font-size:12px;margin:8px 0 4px}
+input,select,textarea,button{width:100%;box-sizing:border-box;font-size:17px;padding:13px;border-radius:12px;border:1px solid #2b4264;background:#020617;color:#fff}
+button{background:#fbbf24;color:#111827;font-weight:bold;border:0;margin-top:8px}
+button.secondary{background:#1b2d49;color:#fff;border:1px solid #2b4264}
+button.danger{background:#ef4444;color:#fff}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.full{grid-column:1/-1}
+.score{font-size:46px;font-weight:bold;text-align:center;margin:8px 0}
+.box{text-align:center;background:#020617;border:1px solid #2b4264;border-radius:14px;padding:10px}
+.tabs{position:fixed;left:0;right:0;bottom:0;background:#020617;border-top:1px solid #2b4264;display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:6px;z-index:10}
+.tabs button{font-size:11px;padding:10px 2px;margin:0;background:#1b2d49;color:#fff}.tabs button.on{background:#fbbf24;color:#111827}
+.hide{display:none}table{width:100%;border-collapse:collapse;font-size:14px}td,th{border-bottom:1px solid #2b4264;padding:8px 4px;text-align:left}th{color:#b6c3d8}.right{text-align:right}
+.note{color:#b6c3d8;font-size:13px;line-height:1.35}.leader{font-size:24px;font-weight:bold;color:#fbbf24}.item{border-bottom:1px solid #2b4264;padding:10px 0}
+.err{display:none;background:#991b1b;color:#fff;padding:10px;white-space:pre-wrap}
+.err.show{display:block}
+
+/* Dynamischer Turnierbaum */
+.tournamentCreate{border-top:1px solid #2b4264;margin-top:10px;padding-top:10px}
+.bracketPlayers{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.bracketWrap{overflow-x:auto;padding:8px 0}
+.bracketBoard{min-width:980px;display:flex;gap:24px;align-items:stretch}
+.roundCol{min-width:170px;display:flex;flex-direction:column;justify-content:space-around}
+.roundCol h3{text-align:center;color:#fbbf24;font-size:13px;margin:8px 0 12px}
+.bmatch{background:#020617;border:1px solid #2b4264;border-radius:12px;margin:12px 0;padding:8px;box-shadow:0 0 10px rgba(0,0,0,.20)}
+.bslot{padding:8px;border-bottom:1px solid #2b4264;min-height:32px}
+.bslot:last-child{border-bottom:0}
+.bslot.empty{color:#64748b}
+.bwinner{margin-top:8px}
+.champBox{background:#020617;border:1px solid #fbbf24;border-radius:14px;text-align:center;padding:14px;margin:14px 0}
+.champBox .cup{font-size:34px}
+.tourMeta{color:#b6c3d8;font-size:13px;line-height:1.4}
+@media(max-width:700px){
+ .bracketPlayers{grid-template-columns:1fr}
+ .bracketBoard{min-width:760px;gap:14px}
+ .roundCol{min-width:135px}
+ .bslot{font-size:13px;padding:7px}
+ .bwinner select{font-size:13px;padding:8px}
+}
+
+
+/* Startseite */
+.homeGrid{display:grid;grid-template-columns:1fr;gap:12px}
+.podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:8px;align-items:end;margin-top:10px}
+.podiumBox{background:#020617;border:1px solid #2b4264;border-radius:14px;padding:12px;text-align:center}
+.podiumBox.first{border-color:#fbbf24;min-height:132px}
+.podiumBox.second{min-height:105px}
+.podiumBox.third{min-height:90px}
+.medal{font-size:30px}
+.podName{font-weight:bold;font-size:16px;margin-top:5px}
+.podPts{color:#b6c3d8;font-size:13px;margin-top:3px}
+.champList{margin-top:8px}
+.champItem{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #2b4264;padding:9px 0}
+.champYear{color:#fbbf24;font-weight:bold}
+@media(min-width:720px){.homeGrid{grid-template-columns:1.2fr .8fr}}
+
+
+.currentTournamentCard{cursor:pointer}
+.currentTournamentTitle{font-size:18px;font-weight:bold;color:#fbbf24;margin-top:6px}
+.currentTournamentMeta{color:#b6c3d8;font-size:13px;margin-top:4px}
+
+
+.logoText{line-height:1;margin-right:90px}
+.logoMain{font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:30px;font-weight:500;color:#fff;letter-spacing:.5px;text-shadow:0 0 8px rgba(255,255,255,.25)}
+.logoSub{font-size:11px;letter-spacing:8px;color:#fff;margin-left:48px;margin-top:2px}
+@media(max-width:420px){
+ .logoMain{font-size:26px}
+ .logoSub{font-size:10px;letter-spacing:6px;margin-left:42px}
+}
+
+
+.loginModal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:9999}
+.loginBox{background:#101c30;border:1px solid #2b4264;border-radius:16px;padding:20px;width:min(90%,380px)}
+.loginBox h2{margin-top:0}
+
+
+.menuToggle{position:fixed;top:10px;right:10px;width:auto;padding:8px 12px;z-index:30;background:#fbbf24;color:#111827;border:none;border-radius:8px;font-size:22px;line-height:1}
+.adminMenu{display:none;position:fixed;top:58px;right:10px;z-index:29;background:#101c30;border:1px solid #2b4264;border-radius:14px;padding:8px;width:230px;box-shadow:0 12px 30px rgba(0,0,0,.35)}
+.adminMenu.show{display:block}
+.adminMenu button{width:100%;font-size:14px;padding:10px 12px;margin:4px 0;background:#1b2d49;color:#fff;border:1px solid #2b4264;text-align:left}
+.adminMenu button.on{background:#fbbf24;color:#111827}
+.adminMenu button.danger{background:#ef4444;color:#fff}
+
+
+.dashboardAdminBox{margin-top:10px;border-top:1px solid #2b4264;padding-top:10px}
+.rewardLine{border-bottom:1px solid #2b4264;padding:7px 0}
+.rewardLine:last-child{border-bottom:0}
+.newsText{white-space:pre-wrap;line-height:1.4}
+
+
+
+
+/* Farbpalette aus Bild */
+:root{
+ --cream:#F4EEB4;
+ --sage:#ABC39F;
+ --teal:#55897D;
+ --slate:#425454;
+ --brown:#7B564E;
+}
+
+body{background:var(--slate);color:var(--cream);font-family:'Courier New',monospace}
+header,.tabs,.loginBox,.adminMenu{background:var(--slate)}
+.card{border:2px solid var(--cream);box-shadow:4px 4px 0 rgba(0,0,0,.35)}
+button{background:var(--brown);color:var(--cream);border:2px solid var(--cream)}
+button.secondary{background:var(--teal)}
+input,select,textarea{border:2px solid var(--sage);background:rgba(0,0,0,.15);color:var(--cream)}
+
+#dashBallonCard,#ballon .card,#game .card{background:var(--teal)}
+#dashChampionsCard,#yearpage .card,#pending .card{background:var(--brown)}
+#dashTournamentCard,#tournament .card,#players .card{background:var(--sage);color:#203030}
+#dashHistoryCard,#history .card{background:var(--slate)}
+
+.logoMain,.leader,.currentTournamentTitle,th{color:var(--cream)}
+
+
+/* Turnier Text braun statt blau */
+#tournament .note,
+#tournament .tourMeta,
+#tournament .bonusLine,
+#tournament .bslot,
+#tournament .champBox,
+#tournament h2,
+#tournament h3,
+#tournament b{
+ color: var(--brown) !important;
+}
+
+
+/* Dashboard Turnierkarte Text ebenfalls braun */
+#dashTournamentCard h2,
+#dashTournamentCard .note,
+#dashTournamentCard .currentTournamentTitle,
+#dashTournamentCard .currentTournamentMeta,
+#homeTournament{
+ color: var(--brown) !important;
+}
+
+
+/* Titel schwarz lassen */
+#dashTournamentCard h2,
+#dashTournamentCard .currentTournamentTitle,
+#tournament h2,
+#tournament h3{
+ color:#000000 !important;
+}
+
+</style>
+</head>
+<body>
+<div id="err" class="err"></div>
+<header><div class="logoText" id="logoHome" style="cursor:pointer">
+ <div class="logoMain">Rümli</div>
+ <div class="logoSub">LEAGUE</div>
+</div>
+<button id="menuToggle" class="menuToggle" aria-label="Menü">☰</button>
+
+</header>
+
+<div id="loginModal" class="loginModal">
+ <div class="loginBox">
+  <h2>Admin Login</h2>
+  <input id="popupPassword" type="password" placeholder="Passwort eingeben">
+  <button id="popupLoginBtn">Einloggen</button>
+  <button id="popupCancelBtn" class="secondary">Abbrechen</button>
+ </div>
+</div>
+
+
+
+<div id="adminMenu" class="adminMenu">
+ <button id="amPendingAdmin" class="adminOnly">Offene Spiele (0)</button>
+ <button id="amGame" class="adminOnly">Spiel</button>
+ <button id="amPlayers" class="adminOnly">Spieler</button>
+ <button id="amHistoryAdmin" class="adminOnly">Historie</button>
+ <button id="amTopAdmin" class="adminOnly">Top Scorer</button>
+ <button id="amBallonAdmin" class="adminOnly">Ballon d'Or Kandidaten</button>
+ <button id="menuLogout" class="danger adminOnly">Logout</button>
+
+ <button id="nmSubmitGame" class="normalOnly">Spiel melden</button>
+ <button id="nmTop" class="normalOnly">Top Scorer</button>
+ <button id="nmBallon" class="normalOnly">Ballon d'Or Kandidaten</button>
+ <button id="nmHistory" class="normalOnly">Historie</button>
+ <button id="menuLogin" class="normalOnly danger">Login</button>
+</div>
+
+<main>
+
+<div id="home">
+ <div class="homeGrid">
+  <div class="card" id="dashBallonCard" style="cursor:pointer">
+   <h2 id="topScorerDashTitle">Top Scorer</h2>
+   <p class="note">Top 3 des aktuellen Monats</p>
+   <div id="homePodium"></div>
+  </div>
+  <div class="card" id="dashChampionsCard" style="cursor:pointer">
+   <h2>Ballon d’Or</h2>
+   <p class="note">Sieg/Unentschieden/Niederlage</p>
+   <div id="homeChampions"></div>
+  </div>
+  <div class="card" id="dashHistoryCard" style="cursor:pointer">
+   <h2>Letztes Match</h2>
+   <p class="note">Klick zur Historie</p>
+   <div id="homeLastMatch"></div>
+  </div>
+  <div class="card">
+   <h2>Belohnungen</h2>
+   <div id="homeRewards"></div>
+   <div id="rewardsAdminBox" class="dashboardAdminBox hide">
+<label>🏆 Ballon d'Or</label><input id="rewardBallon">
+<label>🥇 1. Top Scorer</label><input id="rewardTop1">
+<label>🥈 2.</label><input id="rewardTop2">
+<label>🥉 3.</label><input id="rewardTop3">
+<button id="saveRewards">Belohnungen speichern</button>
+</div>
+  </div>
+ </div>
+</div>
+
+<div id="game">
+ <div class="card">
+  <h2 id="gameTitle">Spiel melden</h2>
+  <label>Welchen Modus willst du spielen?</label>
+  <select id="gameType"><option value="normal">Normales Spiel</option><option value="bo3">Best of 3</option></select>
+  <div class="grid" id="normalGameFields">
+   <div><label>Spieler A</label><select id="a"></select></div>
+   <div><label>Spieler B</label><select id="b"></select></div>
+   <div class="normalScoreField"><label>Tore A</label><input id="sa" type="number" value="9" min="0"></div>
+   <div class="normalScoreField"><label>Tore B</label><input id="sb" type="number" value="7" min="0"></div>
+   <div><label>Wer meldet?</label><select id="reporter"></select></div>
+   <div><label>Datum</label><input id="date" type="date"></div>
+  </div>
+  <div id="bo3Box" class="hide">
+    <h3>Best of 3</h3>
+    <p class="note">Keine Tore. Einfach auswählen, wer das Best of 3 gewonnen hat. Gewinner bekommt 12 Punkte fürs Ballon d’Or Ranking.</p>
+    <label>Best of 3 Gewinner</label>
+    <select id="bo3Winner"></select>
+   </div>
+   <div class="full"><label>Notiz</label><textarea id="note"></textarea></div>
+  </div>
+  <button id="save">Spiel speichern 🏆</button>
+ </div>
+</div>
+
+<div id="ballon" class="hide">
+ <div class="card">
+  <h2>Top Scorer</h2>
+  <div class="grid">
+   <div><label>Monat</label><select id="month"></select></div>
+   <div><label>Jahr</label><input id="myear" type="number"></div>
+  </div>
+ </div>
+ <div class="card"><div class="note">Top Scorer</div><div id="leader" class="leader">–</div></div>
+ <div class="card"><h2>Monats-Tabelle</h2><p class="note">Top Scorer zählt nur Tore, keine Extra-Punkte.</p><div id="rank"></div></div>
+ <div class="card"><h2>Monats-Sieger</h2><div id="months"></div></div>
+</div>
+
+<div id="yearpage" class="hide">
+ <div class="card"><h2 id="championsTitle">Ballon d’Or Kandidaten</h2><p class="note">Ballon d’Or: Normaler Sieg = 3, Unentschieden = 1, Niederlage = 0. Best of 3 Sieg = 12 Punkte.</p><label>Jahr</label><input id="year" type="number"></div>
+ <div class="card"><div id="yrank"></div></div>
+</div>
+
+<div id="players" class="hide">
+ <div class="card"><h2>Spieler</h2><label>Name</label><input id="newp"><button id="addp">Spieler hinzufügen</button></div>
+ <div class="card"><div id="plist"></div></div>
+ <div class="card"><button class="secondary" id="export">CSV Export</button><button class="danger" id="wipe">Alles löschen</button></div>
+</div>
+
+<div id="pending" class="hide">
+ <div class="card"><h2>Offene Spiele</h2><div id="pendingList"></div></div>
+</div>
+
+<div id="history" class="hide">
+ <div class="card"><h2>Historie</h2><div id="hist"></div></div>
+</div>
+
+<div id="adminlogin" class="hide">
+ <div class="card">
+  <h2>Admin Login</h2>
+  <label>Passwort</label>
+  <input id="adminpass" type="password" placeholder="Passwort eingeben">
+  <button id="adminLoginBtn">Einloggen</button>
+  <button class="secondary" id="adminLogoutBtn">Admin abmelden</button>
+  <p class="note">Ohne Passwort ist nur Ansicht möglich.</p>
+ </div>
+</div>
+
+
+
+</main>
+
+<div class="tabs">
+
+<button id="tg">Spiel</button>
+<button id="tb">Ballon d'Or</button>
+<button id="ty">Champions League</button>
+<button id="tp">Spieler</button>
+<button id="th">Historie</button>
+
+</div>
+
+
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+
+<script>
+(function(){
+try{
+var ADMIN_PASSWORD='5074';
+var isAdmin=localStorage.getItem('airhockey_is_admin')==='true';
+
+var firebaseConfig = {
+  apiKey: "AIzaSyDbmsQZWY01adrfPcM0YAkTRqi7zLdVwyU",
+  authDomain: "rumlileague.firebaseapp.com",
+  projectId: "rumlileague",
+  storageBucket: "rumlileague.firebasestorage.app",
+  messagingSenderId: "93283021621",
+  appId: "1:93283021621:web:09b1c8213feaa80413927c",
+  measurementId: "G-LL9C1K0XC7"
+};
+
+firebase.initializeApp(firebaseConfig);
+var db = firebase.firestore();
+var leagueRef = db.collection("rumliLeague").doc("main");
+
+function freshData(){return {players:['Ich','Freund'],games:[],pendingGames:[],tournaments:[],settings:{news:'',rewards:{top1:'',top2:'',top3:'',ballon:''}}};}
+var d = freshData();
+
+function cleanData(){
+ if(!d.players){d.players=['Ich','Freund'];}
+ if(!d.games){d.games=[];} if(!d.pendingGames){d.pendingGames=[];}
+ if(!d.tournaments){d.tournaments=[];}
+ if(!d.settings){d.settings={news:'',rewards:{top1:'',top2:'',top3:'',ballon:''}};}
+ if(!d.settings.rewards){d.settings.rewards={top1:'',top2:'',top3:'',ballon:''};}
+}
+
+function E(id){return document.getElementById(id);}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function saveData(){
+ cleanData();
+ leagueRef.set(d).catch(function(e){
+  alert('Firebase speichern fehlgeschlagen: '+(e.message||e));
+ });
+}
+function num(id){var x=parseInt(E(id).value,10);return isNaN(x)||x<0?0:x;}
+function today(){var x=new Date();var m=x.getTimezoneOffset();x=new Date(x.getTime()-m*60000);return x.toISOString().slice(0,10);}
+function dt(s){return new Date((s||today())+'T00:00:00');}
+function mname(m){return ['','Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'][m];}
+function fill(){
+ var opts='',i;
+ for(i=0;i<d.players.length;i++){opts+='<option>'+esc(d.players[i])+'</option>';}
+ E('a').innerHTML=opts; E('b').innerHTML=opts; if(E('reporter'))E('reporter').innerHTML=opts; if(E('bo3Winner'))E('bo3Winner').innerHTML=opts; if(d.players.length>1)E('b').selectedIndex=1;
+ var mo='';for(i=1;i<=12;i++){mo+='<option value="'+i+'">'+mname(i)+'</option>';}E('month').innerHTML=mo;
+ var now=new Date();E('month').value=now.getMonth()+1;E('myear').value=now.getFullYear();E('year').value=now.getFullYear();E('date').value=today();
+}
+function sync(){
+ if(E('na'))E('na').innerHTML=esc(E('a').value);
+ if(E('nb'))E('nb').innerHTML=esc(E('b').value);
+ if(E('la'))E('la').innerHTML=num('sa');
+ if(E('lb'))E('lb').innerHTML=num('sb');
+ if(E('bo3Winner')){
+  var aa=E('a').value,bb=E('b').value,cur=E('bo3Winner').value;
+  E('bo3Winner').innerHTML='<option>'+esc(aa)+'</option><option>'+esc(bb)+'</option>';
+  if(cur===aa||cur===bb)E('bo3Winner').value=cur;
+ }
+}
+
+function isBo3(){
+ return E('gameType') && E('gameType').value==='bo3';
+}
+function toggleBo3(){
+ var bo3=isBo3();
+ if(E('gameTitle'))E('gameTitle').innerHTML=bo3?'Best of 3 melden':'Spiel melden';
+ if(E('bo3Box'))E('bo3Box').className=bo3?'':'hide';
+ var scoreFields=document.querySelectorAll('.normalScoreField');
+ for(var i=0;i<scoreFields.length;i++){scoreFields[i].style.display=bo3?'none':'block';}
+ sync();
+}
+function bo3RoundsFromForm(){
+ return [];
+}
+function bo3Winner(g){
+ return g.winner||'';
+}
+function bo3Goals(g,p){
+ return 0;
+}
+function topScorerPoints(g,p){
+ if(g.bestOf3){return bo3Goals(g,p);}
+ return (g.a==p)?g.sa:g.sb;
+}
+function ballonPoints(g,p){
+ if(g.bestOf3){
+  return bo3Winner(g)===p?12:0;
+ }
+ var own=(g.a==p)?g.sa:g.sb;
+ var opp=(g.a==p)?g.sb:g.sa;
+ if(own>opp)return 3;
+ if(own==opp)return 1;
+ return 0;
+}
+function points(g,p,kind){
+ return kind==='ballon'?ballonPoints(g,p):topScorerPoints(g,p);
+}
+function stats(games,tours,kind){
+ var s={},i,g,w,l,k,a=[],t;
+ tours=tours||[];
+ for(i=0;i<d.players.length;i++){s[d.players[i]]={name:d.players[i],p:0,w:0,l:0,gf:0,ga:0,tb:0};}
+ for(i=0;i<games.length;i++){
+  g=games[i]; if(!s[g.a])s[g.a]={name:g.a,p:0,w:0,l:0,gf:0,ga:0,tb:0}; if(!s[g.b])s[g.b]={name:g.b,p:0,w:0,l:0,gf:0,ga:0,tb:0};
+  if(g.bestOf3){
+   w=bo3Winner(g); l=w==g.a?g.b:(w==g.b?g.a:'');
+   if(w){s[w].w++;s[l].l++;}
+   s[g.a].p+=points(g,g.a,kind); s[g.b].p+=points(g,g.b,kind);
+   continue;
+  }
+  w=g.sa>g.sb?g.a:(g.sb>g.sa?g.b:''); l=w==g.a?g.b:(w==g.b?g.a:'');
+  if(w){s[w].w++; s[l].l++;}
+  s[g.a].gf+=g.sa; s[g.a].ga+=g.sb; s[g.b].gf+=g.sb; s[g.b].ga+=g.sa;
+  s[g.a].p+=points(g,g.a,kind); s[g.b].p+=points(g,g.b,kind);
+ }
+ if(kind==='ballon'){
+  for(i=0;i<tours.length;i++){
+   t=tours[i];
+   if(t.first){if(!s[t.first])s[t.first]={name:t.first,p:0,w:0,l:0,gf:0,ga:0,tb:0};s[t.first].p+=10;s[t.first].tb+=10;}
+   if(t.second){if(!s[t.second])s[t.second]={name:t.second,p:0,w:0,l:0,gf:0,ga:0,tb:0};s[t.second].p+=5;s[t.second].tb+=5;}
+   if(t.third){if(!s[t.third])s[t.third]={name:t.third,p:0,w:0,l:0,gf:0,ga:0,tb:0};s[t.third].p+=3;s[t.third].tb+=3;}
+  }
+ }
+ for(k in s){a.push(s[k]);}
+ a.sort(function(x,y){return (y.p-x.p)||((y.tb||0)-(x.tb||0))||(y.w-x.w)||((y.gf-y.ga)-(x.gf-x.ga));});
+ return a;
+}
+function drawTable(arr){
+ if(arr.length==0)return '<p class="note">Keine Daten.</p>';
+ var o='<table><tr><th>#</th><th>Spieler</th><th class="right">Pkt</th><th class="right">Extra</th><th class="right">Win</th><th class="right">Lose</th><th class="right">Tore</th></tr>',i,r;
+ for(i=0;i<arr.length;i++){r=arr[i];o+='<tr><td>'+(i+1)+'</td><td><b>'+esc(r.name)+'</b></td><td class="right"><b>'+r.p+'</b></td><td class="right">'+(r.tb||0)+'</td><td class="right">'+r.w+'</td><td class="right">'+r.l+'</td><td class="right">'+r.gf+':'+r.ga+'</td></tr>';}
+ return o+'</table>';
+}
+function monthGames(y,m){var a=[],i,g,t;for(i=0;i<d.games.length;i++){g=d.games[i];t=dt(g.date);if(t.getFullYear()==y&&(t.getMonth()+1)==m)a.push(g);}return a;}
+function yearGames(y){var a=[],i,g,t;for(i=0;i<d.games.length;i++){g=d.games[i];t=dt(g.date);if(t.getFullYear()==y)a.push(g);}return a;}
+function tournamentMonth(y,m){var a=[],i,t,dd;for(i=0;i<d.tournaments.length;i++){t=d.tournaments[i];dd=dt(t.date);if(dd.getFullYear()==y&&(dd.getMonth()+1)==m)a.push(t);}return a;}
+function tournamentYear(y){var a=[],i,t,dd;for(i=0;i<d.tournaments.length;i++){t=d.tournaments[i];dd=dt(t.date);if(dd.getFullYear()==y)a.push(t);}return a;}
+
+function renderBallon(){
+ var y=parseInt(E('myear').value,10),m=parseInt(E('month').value,10),arr=stats(monthGames(y,m),tournamentMonth(y,m),'top');
+ E('leader').innerHTML=(arr[0]&&arr[0].p>0)?esc(arr[0].name)+' – '+arr[0].p+' Punkte':'Noch kein Leader';
+ E('rank').innerHTML=drawTable(arr);
+ var o='<table><tr><th>Monat</th><th>Top Scorer</th><th class="right">Tore</th></tr>',i,r;
+ for(i=1;i<=12;i++){r=stats(monthGames(y,i),tournamentMonth(y,i),'top')[0];o+='<tr><td>'+mname(i)+'</td><td>'+(r&&r.p>0?'<b>'+esc(r.name)+'</b>':'–')+'</td><td class="right">'+(r&&r.p>0?r.p:'–')+'</td></tr>';}
+ E('months').innerHTML=o+'</table>';
+}
+function renderYear(){var y=parseInt(E('year').value,10);E('championsTitle').innerHTML='Ballon d’Or Kandidaten '+y;E('yrank').innerHTML=drawTable(stats(yearGames(y),[],'ballon'));}
+function renderPlayers(){
+ var o='',i;for(i=0;i<d.players.length;i++){o+='<div class="item"><b>'+esc(d.players[i])+'</b><button class="danger rem" data-i="'+i+'">löschen</button></div>';}E('plist').innerHTML=o||'<p class="note">Keine Spieler.</p>';
+}
+function renderHist(){
+ var o='',i,g,w;for(i=d.games.length-1;i>=0;i--){g=d.games[i];w=g.sa>g.sb?g.a:g.b;if(g.bestOf3){
+   var bw=bo3Winner(g);
+   o+='<div class="item"><b>'+esc(g.date)+'</b> · Best of 3<br>'+esc(g.a)+' vs '+esc(g.b)+'<br><span class="note">Sieger: '+esc(bw||'offen')+' · +12 Ballon d’Or Punkte</span>'+(isAdmin?'<button class="secondary del" data-i="'+i+'">löschen</button>':'')+'</div>';
+  }else{
+   o+='<div class="item"><b>'+esc(g.date)+'</b><br>'+esc(g.a)+' <b>'+g.sa+':'+g.sb+'</b> '+esc(g.b)+'<br><span class="note">Sieger: '+esc(w)+'</span>'+(isAdmin?'<button class="secondary del" data-i="'+i+'">löschen</button>':'')+'</div>';
+  }}E('hist').innerHTML=o||'<p class="note">Noch keine Spiele.</p>';
+}
+
+function makePlayerOptions(selected,allowEmpty){
+ var o=allowEmpty?'<option value="">-</option>':'',i,p;
+ for(i=0;i<d.players.length;i++){p=d.players[i];o+='<option value="'+esc(p)+'" '+(p==selected?'selected':'')+'>'+esc(p)+'</option>';}
+ return o;
+}
+function renderTournamentInputs(selectedPlayers){
+ selectedPlayers=selectedPlayers||[];
+ var count=parseInt(E('tcount').value,10)||8;
+ var o='',i,sel;
+ for(i=1;i<=count;i++){
+  sel=selectedPlayers[i-1]||'';
+  o+='<div><label>Spieler '+i+'</label><select id="tpick'+i+'">'+makePlayerOptions(sel,true)+'</select></div>';
+ }
+ E('tplayerInputs').innerHTML=o;
+ E('tthird').innerHTML=makePlayerOptions(E('tthird').value,true);
+}
+function nextPowerOfTwo(n){var p=1;while(p<n){p*=2;}return p;}
+function createRounds(players){
+ var size=nextPowerOfTwo(players.length),slots=[],i,rounds=[],m,nextCount;
+ for(i=0;i<size;i++){slots.push(players[i]||'');}
+ rounds[0]=[];
+ for(i=0;i<size;i+=2){rounds[0].push({p1:slots[i],p2:slots[i+1],winner:''});}
+ nextCount=size/4;
+ while(nextCount>=1){rounds.push([]);for(m=0;m<nextCount;m++){rounds[rounds.length-1].push({p1:'',p2:'',winner:''});}nextCount=Math.floor(nextCount/2);}
+ return rounds;
+}
+function propagate(t){
+ var r,m,next,win,other,last,finalMatch;
+ if(!t.rounds){t.rounds=createRounds(t.players||[]);}
+ for(r=0;r<t.rounds.length;r++){
+  for(m=0;m<t.rounds[r].length;m++){
+   var match=t.rounds[r][m];
+   if(match.p1&&!match.p2&&!match.winner){match.winner=match.p1;}
+   if(match.p2&&!match.p1&&!match.winner){match.winner=match.p2;}
+  }
+  if(r<t.rounds.length-1){
+   for(m=0;m<t.rounds[r+1].length;m++){t.rounds[r+1][m].p1='';t.rounds[r+1][m].p2='';}
+   for(m=0;m<t.rounds[r].length;m++){
+    win=t.rounds[r][m].winner||'';
+    if(win){
+     next=t.rounds[r+1][Math.floor(m/2)];
+     if(m%2==0){next.p1=win;}else{next.p2=win;}
+    }
+   }
+  }
+ }
+ last=t.rounds[t.rounds.length-1];
+ if(last&&last[0]){
+  finalMatch=last[0];
+  t.first=finalMatch.winner||'';
+  if(t.first){t.second=(finalMatch.p1==t.first?finalMatch.p2:finalMatch.p1)||'';}else{t.second='';}
+ }
+}
+function roundName(idx,total,size){
+ if(idx==total-1)return 'FINALE';
+ if(size==4){return idx==0?'HALBFINALE':'FINALE';}
+ if(size==8){return idx==0?'VIERTELFINALE':(idx==1?'HALBFINALE':'FINALE');}
+ return idx==0?'ACHTELFINALE':(idx==1?'VIERTELFINALE':(idx==2?'HALBFINALE':'FINALE'));
+}
+function matchHtml(ti,ri,mi,match,isAdminView){
+ var opts='',a=match.p1,b=match.p2;
+ if(a)opts+='<option value="'+esc(a)+'" '+(match.winner==a?'selected':'')+'>'+esc(a)+'</option>';
+ if(b)opts+='<option value="'+esc(b)+'" '+(match.winner==b?'selected':'')+'>'+esc(b)+'</option>';
+ if(!opts)opts='<option value="">-</option>';else opts='<option value="">Gewinner wählen</option>'+opts;
+ return '<div class="bmatch"><div class="bslot '+(!a?'empty':'')+'">'+esc(a||'frei')+'</div><div class="bslot '+(!b?'empty':'')+'">'+esc(b||'frei')+'</div>'+
+ (isAdminView?'<div class="bwinner"><select class="matchWinner" data-t="'+ti+'" data-r="'+ri+'" data-m="'+mi+'">'+opts+'</select></div>':'<div class="note">Gewinner: '+esc(match.winner||'-')+'</div>')+
+ '</div>';
+}
+function renderBracket(t,ti){
+ if(!t){return '<h2>Turnierbaum</h2><p class="note">Noch kein Turnier erstellt.</p>';}
+ propagate(t);
+ var size=nextPowerOfTwo((t.players||[]).length),out='<h2>'+esc(t.name||'Turnier')+'</h2><p class="tourMeta">'+esc(t.date||'')+' · '+(t.players?t.players.length:0)+' Spieler</p><div class="bracketWrap"><div class="bracketBoard">',r,m;
+ for(r=0;r<t.rounds.length;r++){
+  out+='<div class="roundCol"><h3>'+roundName(r,t.rounds.length,size)+'</h3>';
+  for(m=0;m<t.rounds[r].length;m++){out+=matchHtml(ti,r,m,t.rounds[r][m],isAdmin);}
+  if(r==t.rounds.length-1){out+='<div class="champBox"><div class="cup">🏆</div><b>'+esc(t.first||'Sieger offen')+'</b><br><span class="note">Sieger</span></div>';}
+  out+='</div>';
+ }
+ out+='</div></div><div class="bonusLine">🥇 '+esc(t.first||'-')+' (+10) · 🥈 '+esc(t.second||'-')+' (+5) · 🥉 '+esc(t.third||'-')+' (+3)</div>';
+ return out;
+}
+function renderTournament(){
+ E('tournamentAdminBox').className=isAdmin?'':'hide';
+ if(isAdmin){renderTournamentInputs();}
+ var latestIndex=d.tournaments.length-1,latest=latestIndex>=0?d.tournaments[latestIndex]:null;
+ E('currentBracket').innerHTML=renderBracket(latest,latestIndex);
+ var o='',i,t;
+ for(i=d.tournaments.length-1;i>=0;i--){
+  t=d.tournaments[i];propagate(t);
+  o+='<div class="item"><b>'+esc(t.date||'')+' · '+esc(t.name||'Turnier')+'</b><br>'+
+     'Spieler: '+(t.players?t.players.length:0)+'<br>'+
+     '🥇 '+esc(t.first||'-')+' <span class="note">(+10)</span><br>'+
+     '🥈 '+esc(t.second||'-')+' <span class="note">(+5)</span><br>'+
+     '🥉 '+esc(t.third||'-')+' <span class="note">(+3)</span>';
+  if(t.note){o+='<br><span class="note">'+esc(t.note)+'</span>';}
+  if(isAdmin){o+='<br><button class="secondary editTournament" data-i="'+i+'" style="margin-top:7px">Turnier bearbeiten</button><button class="secondary delTournament" data-i="'+i+'" style="margin-top:7px">Turnier löschen</button>';}
+  o+='</div>';
+ }
+ E('tlist').innerHTML=o||'<p class="note">Noch keine Turniere.</p>';
+}
+
+
+function rewardOptions(selected){
+ var opts=['','Kleiner Pokal 🏆','Goldener Pokal 🏆','Getränk 🥤','Snack 🍫','Pizza 🍕','Eis 🍦','Gutschein 🎁','Keine Belohnung'];
+ var o='',i,v;
+ for(i=0;i<opts.length;i++){v=opts[i];o+='<option value="'+esc(v)+'" '+(v==selected?'selected':'')+'>'+(v?esc(v):'- auswählen -')+'</option>';}
+ return o;
+}
+function renderDashboardAdmin(){
+ if(E('newsAdminBox'))E('newsAdminBox').className=isAdmin?'dashboardAdminBox':'dashboardAdminBox hide';
+ E('rewardsAdminBox').className=isAdmin?'dashboardAdminBox':'dashboardAdminBox hide';
+ if(isAdmin){
+  if(E('newsInput'))E('newsInput').value=d.settings.news||'';
+  E('rewardTop1').value=d.settings.rewards.top1||'';
+  E('rewardTop2').value=d.settings.rewards.top2||'';
+  E('rewardTop3').value=d.settings.rewards.top3||'';
+  E('rewardBallon').value=d.settings.rewards.ballon||'';
+ }
+}
+
+function renderHome(){
+ var now=new Date(),y=now.getFullYear(),m=now.getMonth()+1;E('topScorerDashTitle').innerHTML='Top Scorer '+mname(m)+' '+y;
+ var top=stats(monthGames(y,m),tournamentMonth(y,m),'top');
+ function pbox(rank,cls,medal){
+  var r=top[rank-1];
+  return '<div class="podiumBox '+cls+'"><div class="medal">'+medal+'</div><div class="podName">'+esc(r&&r.p>0?r.name:'-')+'</div><div class="podPts">'+(r&&r.p>0?r.p+' Punkte':'noch offen')+'</div></div>';
+ }
+ E('homePodium').innerHTML='<div class="podium">'+pbox(2,'second','🥈')+pbox(1,'first','🥇')+pbox(3,'third','🥉')+'</div>';
+ var years={},i,g,t,yy,rows,w,o='',list=[];
+ for(i=0;i<d.games.length;i++){yy=dt(d.games[i].date).getFullYear();years[yy]=true;}
+ /* Turniere zählen nicht mehr für Ballon d’Or */
+ for(yy in years){
+  rows=stats(yearGames(parseInt(yy,10)),[],'ballon');
+  w=rows[0];
+  if(w&&w.p>0){list.push({year:parseInt(yy,10),name:w.name,p:w.p});}
+ }
+ list.sort(function(a,b){return b.p-a.p||b.year-a.year;});
+ for(i=0;i<list.length;i++){
+  o+='<div class="champItem"><div><span class="champYear">'+list[i].year+'</span> · <b>'+esc(list[i].name)+'</b></div><div>'+list[i].p+' Pkt</div></div>';
+ }
+ E('homeChampions').innerHTML=o||'<p class="note">Noch keine Champions.</p>';
+ var lg=d.games&&d.games.length?d.games[d.games.length-1]:null;
+ if(lg){
+  if(lg.bestOf3){
+   var bwin=bo3Winner(lg);
+   E('homeLastMatch').innerHTML='<div class="currentTournamentTitle">Best of 3: '+esc(lg.a)+' vs '+esc(lg.b)+'</div><div class="currentTournamentMeta">'+esc(lg.date||'')+' · Sieger: '+esc(bwin||'offen')+' · +12 Ballon d’Or</div>';
+  }else{
+   var win=lg.sa>lg.sb?lg.a:(lg.sb>lg.sa?lg.b:'Unentschieden');
+   E('homeLastMatch').innerHTML='<div class="currentTournamentTitle">'+esc(lg.a)+' '+lg.sa+':'+lg.sb+' '+esc(lg.b)+'</div><div class="currentTournamentMeta">'+esc(lg.date||'')+' · Sieger: '+esc(win)+'</div>';
+  }
+ }else{
+  E('homeLastMatch').innerHTML='<p class="note">Noch kein Match gespielt.</p>';
+ }
+ var rw=d.settings.rewards||{};
+ E('homeRewards').innerHTML=
+  '<div class="rewardLine">🏆 Ballon d’Or: <b>'+esc(rw.ballon||'-')+'</b></div>'+
+  '<div class="rewardLine">🥇 1. Top Scorer: <b>'+esc(rw.top1||'-')+'</b></div>'+
+  '<div class="rewardLine">🥈 2.: <b>'+esc(rw.top2||'-')+'</b></div>'+
+  '<div class="rewardLine">🥉 3.: <b>'+esc(rw.top3||'-')+'</b></div>';
+ renderDashboardAdmin();
+}
+
+
+function renderPending(){
+ var o='',i,g;
+ for(i=0;i<(d.pendingGames||[]).length;i++){
+  g=d.pendingGames[i];
+  if(g.bestOf3){
+   var pr='';
+   for(var px=0;px<(g.rounds||[]).length;px++){pr+='Spiel '+(px+1)+': '+g.rounds[px].sa+':'+g.rounds[px].sb+'<br>';}
+   o+='<div class="item"><b>Gemeldet von: '+esc(g.reporter||'-')+'</b><br>Best of 3 · '+esc(g.a)+' vs '+esc(g.b)+'<br>'+pr+'<span class="note">'+esc(g.date||'')+'</span><br><button class="secondary approveGame" data-i="'+i+'">✅ Bestätigen</button><button class="danger rejectGame" data-i="'+i+'">❌ Ablehnen</button></div>';
+  }else{
+   o+='<div class="item"><b>Gemeldet von: '+esc(g.reporter||'-')+'</b><br>'+esc(g.a)+' <b>'+g.sa+':'+g.sb+'</b> '+esc(g.b)+'<br><span class="note">'+esc(g.date||'')+'</span><br><button class="secondary approveGame" data-i="'+i+'">✅ Bestätigen</button><button class="danger rejectGame" data-i="'+i+'">❌ Ablehnen</button></div>';
+  }
+ }
+ E('pendingList').innerHTML=o||'<p class="note">Keine offenen Spiele.</p>'; updateMenuVisibility();
+}
+
+function renderAll(){sync();renderPending();renderBallon();renderYear();renderPlayers();renderHist();renderHome();}
+
+function updateMenuVisibility(){
+ var m=E('adminMenu');
+ if(!m)return;
+ var adminEls=document.querySelectorAll('.adminOnly');
+ var normalEls=document.querySelectorAll('.normalOnly');
+ for(var i=0;i<adminEls.length;i++){adminEls[i].style.display=isAdmin?'block':'none';}
+ for(var j=0;j<normalEls.length;j++){normalEls[j].style.display=isAdmin?'none':'block';}
+ if(E('amPendingAdmin')){E('amPendingAdmin').innerHTML='Offene Spiele ('+((d.pendingGames&&d.pendingGames.length)||0)+')';}
+}
+function toggleMenu(){
+ updateMenuVisibility();
+ var m=E('adminMenu');
+ if(m){m.className=m.className.indexOf('show')>=0?'adminMenu':'adminMenu show';}
+}
+function closeMenu(){
+ var m=E('adminMenu');
+ if(m){m.className='adminMenu';}
+}
+
+function show(p){
+ var tabsEl=document.querySelector('.tabs');if(tabsEl){tabsEl.style.display=isAdmin?'none':'grid';}
+ if(!isAdmin && (p=='players' || p=='pending')){alert('Bitte zuerst über den Login-Button anmelden.'); p='ballon';}
+ E('home').className=p=='home'?'':'hide';E('pending').className=p=='pending'?'':'hide';E('game').className=p=='game'?'':'hide';E('ballon').className=p=='ballon'?'':'hide';E('yearpage').className=p=='year'?'':'hide';E('players').className=p=='players'?'':'hide';E('history').className=p=='history'?'':'hide';
+ E('tg').style.display=isAdmin?'block':'none';
+ E('tb').style.display='none';
+ E('ty').style.display='none';
+ 
+ E('th').style.display=isAdmin?'block':'none';
+ E('tp').style.display=isAdmin?'block':'none';
+ 
+ E('tg').className=p=='game'?'on':'';E('tb').className=p=='ballon'?'on':'';E('ty').className=p=='year'?'on':'';E('tp').className=p=='players'?'on':'';E('th').className=p=='history'?'on':'';
+ updateMenuVisibility();
+ if(E('amGame'))E('amGame').className='adminOnly '+(p=='game'?'on':'');
+ if(E('amPlayers'))E('amPlayers').className='adminOnly '+(p=='players'?'on':'');
+ if(E('amPendingAdmin'))E('amPendingAdmin').className='adminOnly '+(p=='pending'?'on':'');
+ if(E('amHistoryAdmin'))E('amHistoryAdmin').className='adminOnly '+(p=='history'?'on':'');
+ 
+ if(E('amTopAdmin'))E('amTopAdmin').className='adminOnly '+(p=='ballon'?'on':'');
+ if(E('amBallonAdmin'))E('amBallonAdmin').className='adminOnly '+(p=='year'?'on':'');
+ if(E('nmTop'))E('nmTop').className='normalOnly '+(p=='ballon'?'on':'');
+ if(E('nmBallon'))E('nmBallon').className='normalOnly '+(p=='year'?'on':'');
+ 
+ if(E('nmHistory'))E('nmHistory').className='normalOnly '+(p=='history'?'on':'');
+ if(E('save'))E('save').innerHTML=isAdmin?'Spiel speichern 🏆':'Spiel zur Prüfung einreichen';
+ renderAll();
+}
+function saveGame(){
+ var a=E('a').value,b=E('b').value,sa=num('sa'),sb=num('sb');
+ if(a==b){alert('Bitte zwei verschiedene Spieler wählen.');return;} if(isBo3() && E('bo3Winner').value!==a && E('bo3Winner').value!==b){alert('Der Best of 3 Gewinner muss Spieler A oder Spieler B sein.');return;}
+ if(isAdmin){
+  if(isBo3()){
+   d.games.push({bestOf3:true,date:E('date').value||today(),mode:'Best of 3',a:a,b:b,winner:E('bo3Winner').value,sa:0,sb:0,note:E('note').value});
+  }else{
+   d.games.push({date:E('date').value||today(),mode:'Normal',a:a,b:b,sa:sa,sb:sb,note:E('note').value});
+  }
+  E('note').value='';
+  saveData();
+  show('ballon');
+ }else{
+  var rep=E('reporter').value;
+  if(!rep){alert('Bitte auswählen, wer das Spiel meldet.');return;}
+  for(var i=0;i<(d.pendingGames||[]).length;i++){
+   if(d.pendingGames[i].reporter===rep){
+    alert('Du hast bereits ein offenes Spiel. Warte, bis ein Admin es bestätigt oder ablehnt.');
+    return;
+   }
+  }
+  if(isBo3()){
+  d.pendingGames.push({bestOf3:true,reporter:rep,date:E('date').value||today(),mode:'Best of 3',a:a,b:b,winner:E('bo3Winner').value,sa:0,sb:0,note:E('note').value});
+ }else{
+  d.pendingGames.push({reporter:rep,date:E('date').value||today(),mode:'Normal',a:a,b:b,sa:sa,sb:sb,note:E('note').value});
+ }
+  E('note').value='';
+  saveData();
+  alert('Spiel wurde eingereicht und wartet auf Admin-Bestätigung.');
+  show('home');
+ }
+}
+fill();renderAll();
+if(E('a'))E('a').onchange=sync;if(E('b'))E('b').onchange=sync;if(E('sa'))E('sa').oninput=sync;if(E('sb'))E('sb').oninput=sync;if(E('gameType'))E('gameType').onchange=toggleBo3;toggleBo3();
+E('save').onclick=saveGame;
+if(E('logoHome')){E('logoHome').onclick=function(){show('home');};}
+E('amGame').onclick=function(){show('game');closeMenu();};
+E('amPlayers').onclick=function(){show('players');closeMenu();};
+E('amPendingAdmin').onclick=function(){show('pending');closeMenu();};
+E('amHistoryAdmin').onclick=function(){show('history');closeMenu();};
+
+E('amTopAdmin').onclick=function(){show('ballon');closeMenu();};
+E('amBallonAdmin').onclick=function(){show('year');closeMenu();};
+E('menuLogout').onclick=function(){localStorage.removeItem('airhockey_is_admin');location.reload();};
+
+E('nmSubmitGame').onclick=function(){show('game');closeMenu();};
+E('nmTop').onclick=function(){show('ballon');closeMenu();};
+E('nmBallon').onclick=function(){show('year');closeMenu();};
+
+E('nmHistory').onclick=function(){show('history');closeMenu();};
+E('menuToggle').onclick=function(){toggleMenu();};
+E('menuLogin').onclick=function(){closeMenu();var lm=document.getElementById('loginModal');var pp=document.getElementById('popupPassword');if(lm&&pp){lm.style.display='flex';pp.value='';setTimeout(function(){pp.focus();},50);}};
+
+E('dashBallonCard').onclick=function(){show('ballon')};
+E('dashChampionsCard').onclick=function(){show('year')};
+
+E('dashHistoryCard').onclick=function(){show('history')};
+
+E('saveRewards').onclick=function(){
+ if(!isAdmin){alert('Nur Admins können Belohnungen bearbeiten.');return;}
+ d.settings.rewards={
+  top1:E('rewardTop1').value,
+  top2:E('rewardTop2').value,
+  top3:E('rewardTop3').value,
+  ballon:E('rewardBallon').value
+ };
+ saveData();renderAll();
+};E('tg').onclick=function(){show('game')};E('tb').onclick=function(){show('ballon')};E('ty').onclick=function(){show('year')};E('tp').onclick=function(){show('players')};E('th').onclick=function(){show('history')};
+E('month').onchange=renderBallon;E('myear').oninput=renderBallon;E('year').oninput=renderYear;
+E('addp').onclick=function(){var p=E('newp').value.replace(/^\s+|\s+$/g,'');if(!p)return;d.players.push(p);E('newp').value='';saveData();fill();renderAll();};
+E('wipe').onclick=function(){if(confirm('Alles löschen?')){d={players:['Ich','Freund'],games:[],pendingGames:[],tournaments:[],settings:{news:'',rewards:{top1:'',top2:'',top3:'',ballon:''}}};saveData();fill();show('game');}};
+E('export').onclick=function(){var o='Datum,Spieler A,Tore A,Spieler B,Tore B,Sieger,Notiz\n',i,g;for(i=0;i<d.games.length;i++){g=d.games[i];o+=[g.date,g.a,g.bestOf3?'BO3':g.sa,g.b,g.bestOf3?'BO3':g.sb,g.bestOf3?bo3Winner(g):(g.sa>g.sb?g.a:g.b),g.note].join(',')+'\n';}var blob=new Blob([o],{type:'text/csv'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='airhockey.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);};
+
+E('adminLoginBtn').onclick=function(){
+ if(E('adminpass').value===ADMIN_PASSWORD){
+  localStorage.setItem('airhockey_is_admin','true');
+  isAdmin=true;
+  E('adminpass').value='';
+  show('game');
+ }else{
+  alert('Falsches Passwort');
+ }
+};
+E('adminLogoutBtn').onclick=function(){
+ localStorage.removeItem('airhockey_is_admin');
+ isAdmin=false;
+ show('ballon');
+};
+
+
+
+
+function samePlayers(a,b){
+ if(!a||!b||a.length!==b.length)return false;
+ for(var i=0;i<a.length;i++){if(a[i]!==b[i])return false;}
+ return true;
+}
+function resetTournamentForm(){
+ E('editTournamentIndex').value='';
+ E('saveTournament').innerHTML='Turnier erstellen 🏆';
+ E('cancelTournamentEdit').className='secondary hide';
+ E('tname').value=E('tnote').value='';
+ E('tdate').value=today();
+ renderTournamentInputs();
+}
+function loadTournamentForEdit(idx){
+ var t=d.tournaments[idx],i,count;
+ if(!t){return;}
+ E('editTournamentIndex').value=idx;
+ E('saveTournament').innerHTML='Änderungen speichern ✅';
+ E('cancelTournamentEdit').className='secondary';
+ E('tname').value=t.name||'';
+ E('tdate').value=t.date||today();
+ E('tnote').value=t.note||'';
+ count=(t.players&&t.players.length)?t.players.length:8;
+ E('tcount').value=count;
+ renderTournamentInputs(t.players||[]);
+ E('tthird').value=t.third||'';
+ show('tournament');
+ setTimeout(function(){E('tname').focus();},50);
+}
+
+document.body.onchange=function(ev){var t=ev.target;if(t.className&&String(t.className).indexOf('matchWinner')>=0){var ti=parseInt(t.getAttribute('data-t'),10),ri=parseInt(t.getAttribute('data-r'),10),mi=parseInt(t.getAttribute('data-m'),10);if(d.tournaments[ti]&&d.tournaments[ti].rounds&&d.tournaments[ti].rounds[ri]&&d.tournaments[ti].rounds[ri][mi]){d.tournaments[ti].rounds[ri][mi].winner=t.value;propagate(d.tournaments[ti]);saveData();renderAll();}}};
+document.body.onclick=function(ev){var t=ev.target;if(t.className&&String(t.className).indexOf('editTournament')>=0){var ei=parseInt(t.getAttribute('data-i'),10);loadTournamentForEdit(ei);return;} if(t.className&&String(t.className).indexOf('rem')>=0){var i=parseInt(t.getAttribute('data-i'),10);if(confirm('Spieler löschen?')){d.players.splice(i,1);saveData();fill();renderAll();}} if(t.className&&String(t.className).indexOf('approveGame')>=0){
+ var pi=parseInt(t.getAttribute('data-i'),10),pg=d.pendingGames[pi];
+ if(pg){
+  d.games.push(pg);
+  d.pendingGames.splice(pi,1);
+  saveData();renderAll();
+ }
+ return;
+}
+if(t.className&&String(t.className).indexOf('rejectGame')>=0){
+ var ri=parseInt(t.getAttribute('data-i'),10);
+ if(d.pendingGames[ri]){
+  d.pendingGames.splice(ri,1);
+  saveData();renderAll();
+ }
+ return;
+}
+if(t.className&&String(t.className).indexOf('delTournament')>=0){var ti=parseInt(t.getAttribute('data-i'),10);if(confirm('Turnier löschen?')){d.tournaments.splice(ti,1);saveData();renderAll();}}
+ if(t.className&&String(t.className).indexOf('del')>=0 && String(t.className).indexOf('delTournament')<0){var j=parseInt(t.getAttribute('data-i'),10);if(confirm('Spiel löschen?')){d.games.splice(j,1);saveData();renderAll();}}};
+leagueRef.onSnapshot(function(doc){
+ if(doc.exists){
+  d = doc.data() || freshData();
+  cleanData();
+  fill();
+  renderAll();
+ }else{
+  d = freshData();
+  cleanData();
+  saveData();
+ }
+},function(e){
+ var x=document.getElementById('err');
+ x.className='err show';
+ x.innerHTML='Firebase Fehler: '+(e.message||e);
+});
+
+show('home');
+}catch(e){var x=document.getElementById('err');x.className='err show';x.innerHTML='Fehler: '+(e.message||e);}
+})();
+
+(function(){
+function updateAdminButton(){
+ updateMenuVisibility();
+}
+updateAdminButton();
+
+function setupLoginPopup(){
+ var modal=document.getElementById('loginModal');
+ var pass=document.getElementById('popupPassword');
+ var login=document.getElementById('popupLoginBtn');
+ var cancel=document.getElementById('popupCancelBtn');
+ if(!modal||!pass||!login||!cancel){return;}
+ cancel.onclick=function(){
+  modal.style.display='none';
+ };
+ login.onclick=function(){
+  var pw=pass.value;
+  if(pw==='5074'){
+    localStorage.setItem('airhockey_is_admin','true');
+    location.reload();
+  }else{
+    alert('Falsches Passwort');
+  }
+ };
+ pass.onkeydown=function(e){
+  if(e.key==='Enter'){login.click();}
+ };
+}
+setupLoginPopup();
+
+})();
+
+</script>
+
+<script>
+(function(){
+function openLoginPopup(){
+ var modal=document.getElementById('loginModal');
+ var pass=document.getElementById('popupPassword');
+ if(modal&&pass){
+  modal.style.display='flex';
+  pass.value='';
+  setTimeout(function(){pass.focus();},50);
+ }
+}
+function closeLoginPopup(){
+ var modal=document.getElementById('loginModal');
+ if(modal){modal.style.display='none';}
+}
+function doLogin(){
+ var pass=document.getElementById('popupPassword');
+ var pw=pass?pass.value:'';
+ if(pw==='5074'){
+  localStorage.setItem('airhockey_is_admin','true');
+  location.reload();
+ }else{
+  alert('Falsches Passwort');
+ }
+}
+function initFixedLogin(){
+ var menuLogin=document.getElementById('menuLogin');
+ var popupLogin=document.getElementById('popupLoginBtn');
+ var popupCancel=document.getElementById('popupCancelBtn');
+ var popupPassword=document.getElementById('popupPassword');
+ if(menuLogin){menuLogin.onclick=function(){if(typeof closeMenu==='function')closeMenu();openLoginPopup();};}
+ if(popupLogin){popupLogin.onclick=function(e){e.preventDefault();doLogin();};}
+ if(popupCancel){popupCancel.onclick=function(e){e.preventDefault();closeLoginPopup();};}
+ if(popupPassword){popupPassword.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();doLogin();} if(e.key==='Escape'){closeLoginPopup();}};}
+}
+if(document.readyState==='loading'){
+ document.addEventListener('DOMContentLoaded',initFixedLogin);
+}else{
+ initFixedLogin();
+}
+})();
+</script>
+
+</body>
+</html>
